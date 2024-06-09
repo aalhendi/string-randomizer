@@ -1,25 +1,23 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+pub struct App {
+    input: String,
+    output: String,
 }
 
-impl Default for TemplateApp {
+impl Default for App {
     fn default() -> Self {
-        Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
-        }
+        let input = "Hello World!".to_owned();
+        let output = randomize_string(&input);
+        Self { input, output }
     }
 }
 
-impl TemplateApp {
+impl App {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -35,7 +33,7 @@ impl TemplateApp {
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for App {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
@@ -67,34 +65,39 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
+            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                ui.label("Input String: ");
+                ui.add(egui::TextEdit::singleline(&mut self.input).hint_text("Enter text here"));
+                ui.label("Output String: ");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.output)
+                        .hint_text("Randomized text will appear here"),
+                );
             });
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            ui.horizontal(|ui| {
+                ui.centered_and_justified(|ui| {
+                    if ui.button("Randomize!").clicked() {
+                        self.output = randomize_string(&self.input);
+                    }
+
+                    if ui.button("Copy Output").clicked() {
+                        ui.output_mut(|o| o.copied_text = self.output.clone());
+                    }
+                });
+            });
 
             ui.separator();
 
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
-
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
+                source_and_powered_by(ui);
                 egui::warn_if_debug_build(ui);
             });
         });
     }
 }
 
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
+fn source_and_powered_by(ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.label("Powered by ");
@@ -104,6 +107,17 @@ fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
             "eframe",
             "https://github.com/emilk/egui/tree/master/crates/eframe",
         );
-        ui.label(".");
+        ui.label(". ");
+        ui.add(egui::github_link_file!(
+            "https://github.com/aalhendi/string-randomizer",
+            "Source code (app)."
+        ));
     });
+}
+
+fn randomize_string(input: &str) -> String {
+    let mut chars: Vec<char> = input.chars().collect();
+    let mut rng = thread_rng();
+    chars.shuffle(&mut rng);
+    chars.into_iter().collect()
 }

@@ -1,7 +1,7 @@
 [package]
-name = "eframe_template"
+name = "string_randomizer"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Abdulrazzaq Alhendi <dev@aalhendi.com>"]
 edition = "2021"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.76"
@@ -22,6 +22,7 @@ log = "0.4"
 
 # You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
+rand = "0.8.5"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
