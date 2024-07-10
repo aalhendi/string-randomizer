@@ -1,3 +1,5 @@
+use quick_xml::events::Event;
+use quick_xml::{Reader, Writer};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -7,13 +9,22 @@ use rand::thread_rng;
 pub struct App {
     input: String,
     output: String,
+    input_xml: String,
+    output_xml: String,
 }
 
 impl Default for App {
     fn default() -> Self {
         let input = "Hello World!".to_owned();
         let output = randomize_string(&input);
-        Self { input, output }
+        let input_xml = "<Customers><Customer><Number>1</Number><FirstName>Fred</FirstName><LastName>Landis</LastName><Address><Street>Oakstreet</Street><City>Boston</City><ZIP>23320</ZIP><State>MA</State></Address></Customer><Customer><Number>2</Number><FirstName>Michelle</FirstName><LastName>Butler</LastName><Address><Street>First Avenue</Street><City>San-Francisco</City><ZIP>44324</ZIP><State>CA</State></Address></Customer><Customer><Number>3</Number><FirstName>Ted</FirstName><LastName>Little</LastName><Address><Street>Long Way</Street><City>Los-Angeles</City><ZIP>34424</ZIP><State>CA</State></Address></Customer></Customers>".to_owned();
+        let output_xml = prettify_xml(&input);
+        Self {
+            input,
+            output,
+            input_xml,
+            output_xml,
+        }
     }
 }
 
@@ -89,6 +100,35 @@ impl eframe::App for App {
 
             ui.separator();
 
+            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                ui.label("Input XML:");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.input_xml)
+                        .hint_text("Enter XML here")
+                        .desired_rows(10)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.label("Output XML:");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.output_xml)
+                        .hint_text("Formatted XML will appear here")
+                        .desired_rows(10)
+                        .desired_width(f32::INFINITY),
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.centered_and_justified(|ui| {
+                    if ui.button("Format!").clicked() {
+                        self.output_xml = prettify_xml(&self.input_xml);
+                    }
+
+                    if ui.button("Copy Output").clicked() {
+                        ui.output_mut(|o| o.copied_text = self.output_xml.clone());
+                    }
+                });
+            });
+
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 source_and_powered_by(ui);
                 egui::warn_if_debug_build(ui);
@@ -120,4 +160,46 @@ fn randomize_string(input: &str) -> String {
     let mut rng = thread_rng();
     chars.shuffle(&mut rng);
     chars.into_iter().collect()
+}
+
+/// from: lwilli/prettify_xml.rs
+/// Prettify XML by adding proper new lines and indentation.
+///
+/// This uses the quick_xml library (https://github.com/tafia/quick-xml) to read/parse the given
+/// XML string and then write it to a string as indented XML. This isn't perfect and most likely
+/// not the most efficient.
+///
+/// One strange behavior is that a closing element tag is not put on a new line if it follows a
+/// comment and text, for example:
+/// ```
+/// <tag2>
+///   <!--Comment-->Text</tag2>
+/// ```
+///
+/// Performance:
+///   On a large 66K line minified XML document, this takes about 2700ms.
+///   For small XMLs, the time is negligible.
+pub fn prettify_xml(xml: &str) -> String {
+    // let mut buf = Vec::new();
+
+    let mut reader = Reader::from_str(xml);
+
+    let mut writer = Writer::new_with_indent(Vec::new(), b' ', 2);
+
+    loop {
+        let ev = reader.read_event();
+
+        match ev {
+            Ok(Event::Eof) => break, // exits the loop when reaching end of file
+            Ok(event) => writer.write_event(event),
+            Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+        }
+        .expect("Failed to parse XML");
+    }
+
+    let result = std::str::from_utf8(&writer.into_inner())
+        .expect("Failed to convert a slice of bytes to a string slice")
+        .to_string();
+
+    result
 }
