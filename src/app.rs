@@ -93,7 +93,7 @@ impl eframe::App for App {
                     }
 
                     if ui.button("Copy Output").clicked() {
-                        ui.output_mut(|o| o.copied_text = self.output.clone());
+                        ui.output_mut(|o| o.copied_text.clone_from(&self.output));
                     }
                 });
             });
@@ -124,7 +124,7 @@ impl eframe::App for App {
                     }
 
                     if ui.button("Copy Output").clicked() {
-                        ui.output_mut(|o| o.copied_text = self.output_xml.clone());
+                        ui.output_mut(|o| o.copied_text.clone_from(&self.output_xml));
                     }
                 });
             });
